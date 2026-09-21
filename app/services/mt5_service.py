@@ -47,6 +47,7 @@ TRADE_RETCODE_DONE_PARTIAL = 10010
 ORDER_SUCCESS_CODES = {TRADE_RETCODE_PLACED, TRADE_RETCODE_DONE, TRADE_RETCODE_DONE_PARTIAL}
 DEFAULT_DEVIATION = 20
 DEFAULT_MAGIC = 260921
+MAX_ORDER_COMMENT = 29
 
 
 def _normalize_terminal_path(raw: str) -> Path:
@@ -225,6 +226,13 @@ def result_payload(result: Any) -> dict[str, object]:
     return {"repr": str(result)}
 
 
+def order_comment(text: str) -> str:
+    cleaned = "".join(ch for ch in text if 32 <= ord(ch) <= 126).strip()
+    if not cleaned:
+        return "tg"
+    return cleaned[:MAX_ORDER_COMMENT]
+
+
 def build_demo_order_request(
     *,
     symbol: str,
@@ -247,7 +255,7 @@ def build_demo_order_request(
         "price": price,
         "deviation": deviation,
         "magic": magic,
-        "comment": comment[:31],
+        "comment": order_comment(comment),
         "type_time": ORDER_TIME_GTC,
         "type_filling": filling,
     }

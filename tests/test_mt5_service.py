@@ -13,6 +13,7 @@ from app.services.mt5_service import (
     filling_type,
     normalize_volume,
     order_action_and_type,
+    order_comment,
 )
 from app.trading.models import Direction, OrderType
 from app.utils.telegram_ids import is_allowed_channel
@@ -38,7 +39,24 @@ def test_order_helpers() -> None:
     assert request["symbol"] == "XAUUSD"
     assert request["sl"] == 3628.0
     assert request["tp"] == 3650.0
+    assert request["comment"] == "abc123"
     assert "password" not in request
+
+
+def test_order_comment_stays_within_mt5_limit() -> None:
+    request = build_demo_order_request(
+        symbol="XAUUSD.m",
+        action=TRADE_ACTION_DEAL,
+        order_type=ORDER_TYPE_BUY,
+        volume=0.01,
+        price=4346.0,
+        stop_loss=4328.0,
+        take_profit=4369.0,
+        filling=1,
+        comment="0123456789abcdef0123456789abcdef",
+    )
+    assert request["comment"] == order_comment("0123456789abcdef0123456789abcdef")
+    assert len(str(request["comment"])) <= 29
 
 
 def test_submit_demo_order_refuses_unverified() -> None:
