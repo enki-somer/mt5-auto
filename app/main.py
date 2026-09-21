@@ -4,6 +4,7 @@ import logging
 import os
 import threading
 
+from app.paths import is_frozen
 from app.runtime import AutomationRuntime
 from app.updater import UpdateWatcher, relaunch, repo_root
 from app.utils.logging import setup_logging
@@ -33,9 +34,10 @@ def main() -> None:
         return
     watcher.stop()
     runtime.stop()
-    root = repo_root()
-    if root is not None:
-        relaunch("app.main", root)
+    if not watcher.launch_pending_apply():
+        root = repo_root()
+        if root is not None and not is_frozen():
+            relaunch("app.main", root)
     os._exit(0)
 
 

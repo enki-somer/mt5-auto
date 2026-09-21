@@ -11,12 +11,20 @@ from enum import Enum
 from pathlib import Path
 
 from app.paths import is_frozen, user_dir
+from app.release_update import (
+    PendingApply,
+    ReleaseCheckError,
+    installed_sha,
+    launch_apply,
+    prepare_release_update,
+)
 
 logger = logging.getLogger("application")
 
 REMOTE_URL = "https://github.com/enki-somer/mt5-auto.git"
 BRANCH = "main"
 POLL_SECONDS = 90
+RELEASE_POLL_SECONDS = 180
 FIRST_CHECK_SECONDS = 8
 
 
@@ -171,8 +179,13 @@ class UpdateWatcher:
         self._busy = False
         self._announced: set[str] = set()
         self._startup_sha: str | None = None
+        self._pending_apply: PendingApply | None = None
 
     def start(self) -> None:
+        if is_frozen():
+            self._thread = threading.Thread(target=self._loop, name="update-watcher", daemon=True)
+            self._thread.start()
+            return
         root = repo_root()
         if root is None:
             logger.info("Auto-update is off because this folder is not a git checkout.")
@@ -183,18 +196,29 @@ class UpdateWatcher:
         self._thread = threading.Thread(target=self._loop, name="update-watcher", daemon=True)
         self._thread.start()
 
+    def launch_pending_apply(self) -> bool:
+        pending = self._pending_apply
+        if pending is None:
+            return False
+        launch_apply(pending, os.getpid())
+        return True
+
     def stop(self) -> None:
         self._stop.set()
 
     def _loop(self) -> None:
+        interval = RELEASE_POLL_SECONDS if is_frozen() else POLL_SECONDS
         if self._stop.wait(FIRST_CHECK_SECONDS):
             return
         while not self._stop.is_set():
             try:
-                self._tick()
+                if is_frozen():
+                    self._tick_release()
+                else:
+                    self._tick()
             except Exception:
                 logger.exception("Update check failed")
-            if self._stop.wait(POLL_SECONDS):
+            if self._stop.wait(interval):
                 return
 
     def _once(self, key: str, message: str) -> None:
@@ -210,6 +234,20 @@ class UpdateWatcher:
             self._busy = True
         self._stop.set()
         self._on_restart()
+
+    def _tick_release(self) -> None:
+        if self._busy:
+            return
+        try:
+            pending = prepare_release_update(installed_sha())
+        except ReleaseCheckError as error:
+            self._once("release-offline", f"Could not check GitHub for a new build: {error}")
+            return
+        if pending is None:
+            return
+        self._pending_apply = pending
+        logger.info("New build downloaded. Restarting to install it.")
+        self._fire()
 
     def _tick(self) -> None:
         root = repo_root()

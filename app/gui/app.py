@@ -37,7 +37,7 @@ from app.gui.theme import (
     retune_fonts,
     status_color,
 )
-from app.paths import ensure_runtime_files
+from app.paths import ensure_runtime_files, is_frozen
 from app.runtime import AutomationRuntime
 from app.trading.loop import SignalLoopRecord, step_title, visual_verdict
 from app.updater import UpdateWatcher, relaunch, repo_root
@@ -1064,9 +1064,10 @@ class AppWindow(ctk.CTk):
         self.update_idletasks()
         if self.runtime.running:
             self.runtime.stop()
-        root = repo_root()
-        if root is not None:
-            relaunch("app.gui", root)
+        if not self._updater.launch_pending_apply():
+            root = repo_root()
+            if root is not None and not is_frozen():
+                relaunch("app.gui", root)
         self.destroy()
         os._exit(0)
 
