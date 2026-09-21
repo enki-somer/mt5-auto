@@ -1,0 +1,18 @@
+require_stop_loss: true
+require_take_profit: true
+minimum_take_profits: 1
+maximum_signal_age_seconds: 120
+default_volume: 0.01
+maximum_volume: 0.05
+maximum_open_positions: 3
+allow_market_orders: true
+allow_pending_orders: true
+allowed_symbols:
+  - XAUUSD
+  - EURUSD
+allowed_directions:
+  - BUY
+  - SELL
+duplicate_window_hours: 24
+take_profit_strategy: FIRST_TP
+selected_take_profit_index: 1
